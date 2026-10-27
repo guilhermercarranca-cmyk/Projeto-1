@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexusProductivity - Advanced Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tone.js for Pomodoro audio alerts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.5);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.8);
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .dark .glass {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+        }
+        .dark .glass-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(14, 165, 233, 0.4); }
+            50% { box-shadow: 0 0 30px rgba(14, 165, 233, 0.8); }
+        }
+        .glow-active {
+            animation: pulse-glow 3s infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-300">
+ 
+    <!-- Top Navigation & Header -->
+    <header class="sticky top-0 z-40 glass border-b border-slate-200 dark:border-slate-800 px-4 lg:px-8 py-3.5 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/30">
+                <i class="fa-solid fa-layer-group text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">NexusProductivity</h1>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Advanced Study & Life Command Center</p>
+            </div>
+        </div>
+ 
+        <div class="flex items-center space-x-3">
+            <!-- Streak Tracker Badge -->
+            <div class="hidden sm:flex items-center space-x-2 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-full text-amber-600 dark:text-amber-400 text-xs font-medium">
+                <i class="fa-solid fa-fire text-amber-500 animate-bounce"></i>
+                <span id="streak-count">0 Dias de Sequência</span>
+            </div>
+ 
+            <!-- Productivity Score Badge -->
+            <div class="hidden md:flex items-center space-x-2 bg-sky-500/10 border border-sky-500/30 px-3 py-1.5 rounded-full text-sky-600 dark:text-sky-400 text-xs font-medium">
+                <i class="fa-solid fa-bolt text-sky-500"></i>
+                <span id="prod-score">Score: 0/100</span>
+            </div>
+ 
+            <!-- Dark/Light Toggle -->
+            <button onclick="toggleDarkMode()" class="w-10 h-10 rounded-xl bg-slate-200/70 dark:bg-slate-800/80 hover:bg-slate-300 dark:hover:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 transition shadow-sm">
+                <i id="theme-icon" class="fa-solid fa-moon"></i>
+            </button>
+        </div>
+    </header>
+ 
+    <!-- Main Layout Grid -->
+    <div class="max-w-7xl mx-auto px-4 lg:px-8 py-6 flex flex-col lg:flex-row gap-6">
+ 
+        <!-- Sidebar Navigation -->
+        <aside class="w-full lg:w-64 flex-shrink-0">
+            <div class="glass-card rounded-2xl p-4 sticky top-24">
+                <nav class="space-y-1.5">
+                    <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm transition text-left tab-link active bg-sky-500 text-white shadow-lg shadow-sky-500/25">
+                        <i class="fa-solid fa-chart-pie w-5"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button onclick="switchTab('studies')" id="nav-studies" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm transition text-left tab-link text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50">
+                        <i class="fa-solid fa-graduation-cap w-5"></i>
+                        <span>Estudos & Pomodoro</span>
+                    </button>
+                    <button onclick="switchTab('personal')" id="nav-personal" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm transition text-left tab-link text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50">
+                        <i class="fa-solid fa-user-check w-5"></i>
+                        <span>Vida Pessoal</span>
+                    </button>
+                    <button onclick="switchTab('notes')" id="nav-notes" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-sm transition text-left tab-link text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50">
+                        <i class="fa-solid fa-note-sticky w-5"></i>
+                        <span>Notas & Scratchpad</span>
+                    </button>
+                </nav>
+ 
+                <!-- Quick Global Add Button -->
+                <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800">
+                    <button onclick="openTaskModal()" class="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-center space-x-2 shadow-lg shadow-sky-500/20 transition transform active:scale-95">
+                        <i class="fa-solid fa-plus-circle"></i>
+                        <span>Nova Tarefa</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+ 
+        <!-- Main Content Area -->
+        <main class="flex-1 min-w-0">
+ 
+            <!-- TAB 1: DASHBOARD OVERVIEW -->
+            <div id="tab-dashboard" class="tab-content space-y-6">
+                <!-- Welcome Banner -->
+                <div class="glass-card rounded-2xl p-6 relative overflow-hidden bg-gradient-to-br from-sky-500/10 via-indigo-500/5 to-transparent">
+                    <div class="relative z-10">
+                        <h2 class="text-2xl font-bold mb-1" id="greeting-title">Bem-vindo de volta! 🚀</h2>
+                        <p class="text-slate-600 dark:text-slate-400 text-sm max-w-xl">Aqui está o resumo da sua produtividade. Monitore suas metas, prazos e mantenha o foco nas prioridades de hoje.</p>
+                    </div>
+                    <div class="absolute -right-10 -bottom-10 text-900/5 dark:text-white/5 pointer-events-none">
+                        <i class="fa-solid fa-rocket text-9xl opacity-20"></i>
+                    </div>
+                </div>
+ 
+                <!-- Stats Overview Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="glass-card rounded-2xl p-5 flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-tasks"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Total de Tarefas</p>
+                            <h3 class="text-2xl font-bold" id="stat-total-tasks">0</h3>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-5 flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Concluídas</p>
+                            <h3 class="text-2xl font-bold" id="stat-completed-tasks">0</h3>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-5 flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Foco em Estudos</p>
+                            <h3 class="text-2xl font-bold" id="stat-study-hours">0h</h3>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-5 flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-bullseye"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Taxa de Conclusão</p>
+                            <h3 class="text-2xl font-bold" id="stat-completion-rate">0%</h3>
+                        </div>
+                    </div>
+                </div>
+ 
+                <!-- Charts & Upcoming Deadlines -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Progress & Distribution -->
+                    <div class="glass-card rounded-2xl p-6 lg:col-span-2 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-semibold text-base">Progresso Geral de Produtividade</h3>
+                                <span class="text-xs bg-sky-500/10 text-sky-500 px-2.5 py-1 rounded-lg font-medium">Atualizado Agora</span>
+                            </div>
+                            <div class="space-y-4 my-6">
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-slate-600 dark:text-slate-400 font-medium">Estudos & Matérias</span>
+                                        <span id="prog-studies-val" class="font-bold">0%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                                        <div id="prog-studies-bar" class="bg-gradient-to-r from-sky-500 to-indigo-500 h-full w-0 transition-all duration-500"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-slate-600 dark:text-slate-400 font-medium">Vida Pessoal (Finanças, Saúde, etc.)</span>
+                                        <span id="prog-personal-val" class="font-bold">0%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                                        <div id="prog-personal-bar" class="bg-gradient-to-r from-emerald-500 to-teal-500 h-full w-0 transition-all duration-500"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-slate-100 dark:bg-slate-800/50 rounded-xl p-4 flex items-center justify-between text-sm">
+                            <div class="flex items-center space-x-3">
+                                <i class="fa-solid fa-lightbulb text-amber-500 text-lg"></i>
+                                <span class="text-slate-600 dark:text-slate-300" id="motivational-quote">"O sucesso é a soma de pequenos esforços repetidos dia após dia."</span>
+                            </div>
+                        </div>
+                    </div>
+ 
+                    <!-- Upcoming Deadlines -->
+                    <div class="glass-card rounded-2xl p-6 flex flex-col">
+                        <h3 class="font-semibold text-base mb-4 flex items-center justify-between">
+                            <span>Prazos Próximos</span>
+                            <i class="fa-solid fa-hourglass-half text-sky-500"></i>
+                        </h3>
+                        <div id="upcoming-deadlines-list" class="space-y-3 flex-1 overflow-y-auto max-h-[250px]">
+                            <!-- Rendered dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- TAB 2: STUDIES & POMODORO -->
+            <div id="tab-studies" class="tab-content hidden space-y-6">
+                <!-- Pomodoro Timer Section -->
+                <div class="glass-card rounded-2xl p-6 relative overflow-hidden text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-6 bg-gradient-to-r from-indigo-500/10 via-sky-500/10 to-transparent">
+                    <div>
+                        <div class="flex items-center justify-center sm:justify-start space-x-2 text-indigo-500 font-semibold mb-1">
+                            <i class="fa-solid fa-stopwatch"></i>
+                            <span>Pomodoro Focus Timer</span>
+                        </div>
+                        <h2 class="text-3xl font-extrabold tracking-tight mb-2" id="pomodoro-timer-display">25:00</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400" id="pomodoro-status-text">Foco total! Desligue as distrações.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-center gap-3">
+                        <button onclick="startPomodoro()" id="pomo-start-btn" class="bg-sky-500 hover:bg-sky-600 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition shadow-lg shadow-sky-500/25 flex items-center space-x-2">
+                            <i class="fa-solid fa-play"></i>
+                            <span>Iniciar</span>
+                        </button>
+                        <button onclick="pausePomodoro()" class="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition shadow-lg shadow-amber-500/25 flex items-center space-x-2">
+                            <i class="fa-solid fa-pause"></i>
+                            <span>Pausar</span>
+                        </button>
+                        <button onclick="resetPomodoro()" class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-xl font-medium text-sm transition">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                        <div class="w-full flex justify-center gap-2 mt-2">
+                            <button onclick="setPomodoroMode('work')" class="text-xs px-3 py-1 rounded-lg bg-sky-500/20 text-sky-600 dark:text-sky-400 font-medium">Trabalho (25m)</button>
+                            <button onclick="setPomodoroMode('shortBreak')" class="text-xs px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium">Pausa Curta (5m)</button>
+                            <button onclick="setPomodoroMode('longBreak')" class="text-xs px-3 py-1 rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-400 font-medium">Pausa Longa (15m)</button>
+                        </div>
+                    </div>
+                </div>
+ 
+                <!-- Studies Kanban / Board Header & Controls -->
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold">Quadro de Estudos por Matérias</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Organize suas matérias, subtarefas e status.</p>
+                    </div>
+                    <div class="flex items-center space-x-3 w-full sm:w-auto">
+                        <div class="relative flex-1 sm:w-64">
+                            <i class="fa-solid fa-search absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+                            <input type="text" id="study-search" oninput="renderStudies()" placeholder="Buscar estudos..." class="w-full bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-sky-500">
+                        </div>
+                        <button onclick="openTaskModal('estudo')" class="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5 shadow-md shadow-sky-500/20">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Novo Estudo</span>
+                        </button>
+                    </div>
+                </div>
+ 
+                <!-- Studies Kanban Columns -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Column: To Do -->
+                    <div class="glass-card rounded-2xl p-4 flex flex-col">
+                        <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-200 dark:border-slate-800">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+                                <h3 class="font-semibold text-sm">A Fazer</h3>
+                            </div>
+                            <span id="count-study-todo" class="text-xs bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full font-medium">0</span>
+                        </div>
+                        <div id="col-study-todo" class="space-y-3 flex-1 min-h-[250px] overflow-y-auto"></div>
+                    </div>
+ 
+                    <!-- Column: In Progress -->
+                    <div class="glass-card rounded-2xl p-4 flex flex-col">
+                        <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-200 dark:border-slate-800">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 rounded-full bg-sky-500"></div>
+                                <h3 class="font-semibold text-sm">Em Progresso</h3>
+                            </div>
+                            <span id="count-study-progress" class="text-xs bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full font-medium">0</span>
+                        </div>
+                        <div id="col-study-progress" class="space-y-3 flex-1 min-h-[250px] overflow-y-auto"></div>
+                    </div>
+ 
+                    <!-- Column: Completed -->
+                    <div class="glass-card rounded-2xl p-4 flex flex-col">
+                        <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-200 dark:border-slate-800">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+                                <h3 class="font-semibold text-sm">Concluído</h3>
+                            </div>
+                            <span id="count-study-completed" class="text-xs bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full font-medium">0</span>
+                        </div>
+                        <div id="col-study-completed" class="space-y-3 flex-1 min-h-[250px] overflow-y-auto"></div>
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- TAB 3: PERSONAL LIFE -->
+            <div id="tab-personal" class="tab-content hidden space-y-6">
+                <!-- Personal Header & Filters -->
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold">Vida Pessoal & Tarefas</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Finanças, Saúde, Lazer, Tarefas Domésticas e Errandas.</p>
+                    </div>
+                    <div class="flex items-center space-x-3 w-full sm:w-auto">
+                        <select id="personal-category-filter" onchange="renderPersonal()" class="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500">
+                            <option value="all">Todas as Categorias</option>
+                            <option value="finance">Finanças / Contas</option>
+                            <option value="health">Saúde / Fitness</option>
+                            <option value="errands">Errandas / Compras</option>
+                            <option value="leisure">Lazer / Pessoal</option>
+                        </select>
+                        <button onclick="openTaskModal('pessoal')" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5 shadow-md shadow-emerald-500/20">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Nova Tarefa Pessoal</span>
+                        </button>
+                    </div>
+                </div>
+ 
+                <!-- Personal Tasks List Grid -->
+                <div class="glass-card rounded-2xl p-6">
+                    <div id="personal-task-list" class="space-y-3">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- TAB 4: NOTES & SCRATCHPAD -->
+            <div id="tab-notes" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold">Bloco de Notas & Scratchpad</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Anote ideias rápidas, resumos de aulas ou rascunhos em Markdown leve.</p>
+                    </div>
+                    <button onclick="saveNotes()" class="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5 shadow-md shadow-sky-500/20">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Salvar Notas</span>
+                    </button>
+                </div>
+ 
+                <div class="glass-card rounded-2xl p-4">
+                    <textarea id="scratchpad-textarea" class="w-full h-96 bg-transparent resize-none border-0 focus:outline-none text-sm leading-relaxed font-mono" placeholder="# Escreva suas notas aqui...
+- Use markdown simples
+- Listas, ideias, lembretes
+- Salvo automaticamente no navegador"></textarea>
+                </div>
+            </div>
+ 
+        </main>
+    </div>
+ 
+    <!-- MODAL FOR CREATING / EDITING TASKS -->
+    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden">
+        <div class="glass-card rounded-2xl w-full max-w-lg p-6 relative shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-800">
+                <h3 class="font-bold text-lg" id="modal-title">Adicionar Nova Tarefa</h3>
+                <button onclick="closeTaskModal()" class="w-8 h-8 rounded-lg bg-slate-200/50 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+ 
+            <form id="task-form" onsubmit="handleTaskSubmit(event)" class="space-y-4">
+                <input type="hidden" id="task-edit-id">
+ 
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Título da Tarefa / Matéria</label>
+                    <input type="text" id="input-title" required placeholder="Ex: Estudar Cálculo II ou Pagar Conta de Luz" class="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-sky-500">
+                </div>
+ 
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Seção / Tipo</label>
+                        <select id="input-section" onchange="updateCategoryOptions()" class="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-sky-500">
+                            <option value="estudo">Estudos</option>
+                            <option value="pessoal">Vida Pessoal</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Categoria Específica</label>
+                        <select id="input-category" class="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-sky-500">
+                            <!-- Dynamic populated -->
+                        </select>
+                    </div>
+                </div>
+ 
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Prioridade</label>
+                        <select id="input-priority" class="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-sky-500">
+                            <option value="baixa">Baixa</option>
+                            <option value="media" selected>Média</option>
+                            <option value="alta">Alta</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Status</label>
+                        <select id="input-status" class="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-sky-500">
+                            <option value="todo">A Fazer</option>
+                            <option value="progress">Em Progresso</option>
+                            <option value="completed">Concluído</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Data Limite (Prazo)</label>
+                        <input type="date" id="input-date" class="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-sky-500">
+                    </div>
+                </div>
+ 
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Subtarefas / Checklist (uma por linha)</label>
+                    <textarea id="input-subtasks" rows="2" placeholder="Ex: Ler capítulo 1&#10;Fazer resumo&#10;Resolver 5 exercícios" class="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-sky-500 resize-none"></textarea>
+                </div>
+ 
+                <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+                    <button type="button" onclick="closeTaskModal()" class="px-4 py-2 rounded-xl text-sm font-medium bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-sm font-medium bg-sky-500 hover:bg-sky-600 text-white shadow-lg shadow-sky-500/25 transition">Salvar Tarefa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+ 
+    <!-- CUSTOM TOAST NOTIFICATION -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 glass-card bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 border border-slate-700">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="toast-message" class="text-sm font-medium">Ação realizada com sucesso!</span>
+    </div>
+ 
+    <!-- JAVASCRIPT APP LOGIC -->
+    <script>
+        // --- APP STATE & LOCALSTORAGE ---
+        let appData = JSON.parse(localStorage.getItem('nexus_productivity_data')) || {
+            tasks: [
+                { id: 1, title: 'Cálculo II - Integrais Duplas', section: 'estudo', category: 'Matemática', priority: 'alta', status: 'progress', date: '2026-03-10', subtasks: [{text: 'Assistir aula', done: true}, {text: 'Lista 3', done: false}], studyMinutes: 45 },
+                { id: 2, title: 'Física Geral - Eletromagnetismo', section: 'estudo', category: 'Física', priority: 'media', status: 'todo', date: '2026-03-15', subtasks: [{text: 'Ler capítulo 4', done: false}], studyMinutes: 0 },
+                { id: 3, title: 'Pagar Fatura do Cartão', section: 'pessoal', category: 'finance', priority: 'alta', status: 'todo', date: '2026-03-05', subtasks: [], studyMinutes: 0 },
+                { id: 4, title: 'Treino de Academia (Costas/Bíceps)', section: 'pessoal', category: 'health', priority: 'media', status: 'completed', date: '2026-03-01', subtasks: [{text: 'Aquecimento 10m', done: true}, {text: 'Treino A', done: true}], studyMinutes: 0 }
+            ],
+            notes: '# Meu Scratchpad\n- Organizar cronograma de provas\n- Comprar livros de IA e Engenharia de Software\n- Manter foco na rotina diária!',
+            streak: 5,
+            studyTimeTotal: 145 // in minutes
+        };
+ 
+        // Pomodoro State
+        let pomoTimer = null;
+        let pomoSeconds = 25 * 60;
+        let pomoRunning = false;
+        let pomoMode = 'work'; // work, shortBreak, longBreak
+ 
+        // --- INIT & TAB SWITCHING ---
+        window.onload = function() {
+            updateCategoryOptions();
+            renderAll();
+            // Load scratchpad
+ 
+            document.getElementById('scratchpad-textarea').value = appData.notes;
+           
+            // Check theme
+            if (localStorage.getItem('nexus_theme') === 'light') {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('theme-icon').className = 'fa-solid fa-sun';
+            }
+        };
+ 
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+ 
+            document.querySelectorAll('.tab-link').forEach(el => {
+                el.classList.remove('active', 'bg-sky-500', 'text-white', 'shadow-lg', 'shadow-sky-500/25');
+                el.classList.add('text-slate-600', 'dark:text-slate-400');
+            });
+ 
+            const activeBtn = document.getElementById('nav-' + tabId);
+            activeBtn.classList.add('active', 'bg-sky-500', 'text-white', 'shadow-lg', 'shadow-sky-500/25');
+            activeBtn.classList.remove('text-slate-600', 'dark:text-slate-400');
+        }
+ 
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                icon.className = 'fa-solid fa-sun';
+                localStorage.setItem('nexus_theme', 'light');
+            } else {
+                html.classList.add('dark');
+                icon.className = 'fa-solid fa-moon';
+                localStorage.setItem('nexus_theme', 'dark');
+            }
+        }
+ 
+        function showToast(msg, iconClass = 'fa-solid fa-circle-check text-emerald-400') {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-message');
+            const iconEl = document.getElementById('toast-icon');
+            msgEl.innerText = msg;
+            iconEl.className = iconClass;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+ 
+        // --- PERSISTENCE ---
+        function saveAppData() {
+            localStorage.setItem('nexus_productivity_data', JSON.stringify(appData));
+        }
+ 
+        // --- RENDER ALL ---
+        function renderAll() {
+            renderDashboard();
+            renderStudies();
+            renderPersonal();
+            saveAppData();
+        }
+ 
+        // --- DASHBOARD RENDERING ---
+        function renderDashboard() {
+            const tasks = appData.tasks;
+            const total = tasks.length;
+            const completed = tasks.filter(t => t.status === 'completed').length;
+            const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+ 
+            document.getElementById('stat-total-tasks').innerText = total;
+            document.getElementById('stat-completed-tasks').innerText = completed;
+            document.getElementById('stat-completion-rate').innerText = rate + '%';
+            document.getElementById('stat-study-hours').innerText = (appData.studyTimeTotal / 60).toFixed(1) + 'h';
+ 
+            document.getElementById('streak-count').innerText = appData.streak + ' Dias de Sequência';
+            document.getElementById('prod-score').innerText = 'Score: ' + (rate * 0.8 + Math.min(appData.studyTimeTotal, 100)).toFixed(0) + '/100';
+ 
+            // Section progress bars
+            const studyTasks = tasks.filter(t => t.section === 'estudo');
+            const studyComp = studyTasks.filter(t => t.status === 'completed').length;
+            const studyRate = studyTasks.length > 0 ? Math.round((studyComp / studyTasks.length) * 100) : 0;
+            document.getElementById('prog-studies-val').innerText = studyRate + '%';
+            document.getElementById('prog-studies-bar').style.width = studyRate + '%';
+ 
+            const personalTasks = tasks.filter(t => t.section === 'pessoal');
+            const personalComp = personalTasks.filter(t => t.status === 'completed').length;
+            const personalRate = personalTasks.length > 0 ? Math.round((personalComp / personalTasks.length) * 100) : 0;
+            document.getElementById('prog-personal-val').innerText = personalRate + '%';
+            document.getElementById('prog-personal-bar').style.width = personalRate + '%';
+ 
+            // Upcoming deadlines list
+            const deadlinesList = document.getElementById('upcoming-deadlines-list');
+            deadlinesList.innerHTML = '';
+            const pendingTasks = tasks.filter(t => t.date && t.status !== 'completed').sort((a,b) => new Date(a.date) - new Date(b.date));
+ 
+            if (pendingTasks.length === 0) {
+                deadlinesList.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-4">Nenhum prazo próximo pendente! 🎉</p>`;
+            } else {
+                pendingTasks.slice(0, 4).forEach(t => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center justify-between p-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 text-xs';
+                    div.innerHTML = `
+                        <div class="flex items-center space-x-2 truncate">
+                            <i class="fa-solid fa-calendar-day text-sky-500"></i>
+                            <span class="font-medium truncate">${escapeHtml(t.title)}</span>
+                        </div>
+                        <span class="text-slate-500 font-semibold whitespace-nowrap ml-2">${formatDate(t.date)}</span>
+                    `;
+                    deadlinesList.appendChild(div);
+                });
+            }
+        }
+ 
+        // --- STUDIES KANBAN RENDERING ---
+        function renderStudies() {
+            const query = (document.getElementById('study-search').value || '').toLowerCase();
+            const studies = appData.tasks.filter(t => t.section === 'estudo' && t.title.toLowerCase().includes(query));
+ 
+            const todoCol = document.getElementById('col-study-todo');
+            const progressCol = document.getElementById('col-study-progress');
+            const completedCol = document.getElementById('col-study-completed');
+ 
+            todoCol.innerHTML = '';
+            progressCol.innerHTML = '';
+            completedCol.innerHTML = '';
+ 
+            let counts = { todo: 0, progress: 0, completed: 0 };
+ 
+            studies.forEach(t => {
+                counts[t.status]++;
+                const card = createTaskCardHtml(t);
+                if (t.status === 'todo') todoCol.appendChild(card);
+                else if (t.status === 'progress') progressCol.appendChild(card);
+                else if (t.status === 'completed') completedCol.appendChild(card);
+            });
+ 
+            document.getElementById('count-study-todo').innerText = counts.todo;
+            document.getElementById('count-study-progress').innerText = counts.progress;
+            document.getElementById('count-study-completed').innerText = counts.completed;
+        }
+ 
+        // --- PERSONAL RENDERING ---
+        function renderPersonal() {
+            const catFilter = document.getElementById('personal-category-filter').value;
+            const listEl = document.getElementById('personal-task-list');
+            listEl.innerHTML = '';
+ 
+            const personalTasks = appData.tasks.filter(t => t.section === 'pessoal' && (catFilter === 'all' || t.category === catFilter));
+ 
+            if (personalTasks.length === 0) {
+                listEl.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-6">Nenhuma tarefa pessoal nesta categoria.</p>`;
+                return;
+            }
+ 
+            personalTasks.forEach(t => {
+                const item = document.createElement('div');
+                item.className = `flex items-center justify-between p-3.5 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 transition ${t.status === 'completed' ? 'opacity-60' : ''}`;
+               
+                let catBadgeColor = 'bg-sky-500/10 text-sky-500';
+                if (t.category === 'finance') catBadgeColor = 'bg-emerald-500/10 text-emerald-500';
+                if (t.category === 'health') catBadgeColor = 'bg-rose-500/10 text-rose-500';
+                if (t.category === 'errands') catBadgeColor = 'bg-amber-500/10 text-amber-500';
+ 
+                item.innerHTML = `
+                    <div class="flex items-center space-x-3 flex-1 min-w-0">
+                        <input type="checkbox" ${t.status === 'completed' ? 'checked' : ''} onchange="toggleTaskStatus(${t.id})" class="w-4 h-4 rounded text-sky-500 cursor-pointer">
+                        <div class="truncate">
+                            <h4 class="text-xs font-semibold truncate ${t.status === 'completed' ? 'line-through text-slate-400' : ''}">${escapeHtml(t.title)}</h4>
+                            <div class="flex items-center space-x-2 mt-1 text-[10px]">
+                                <span class="px-2 py-0.5 rounded-md font-medium ${catBadgeColor}">${getCategoryName(t.category)}</span>
+                                <span class="text-slate-400"><i class="fa-solid fa-calendar mr-1"></i>${t.date ? formatDate(t.date) : 'Sem data'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 ml-2">
+                        <button onclick="openEditModal(${t.id})" class="text-slate-400 hover:text-sky-500 p-1"><i class="fa-solid fa-pen text-xs"></i></button>
+                        <button onclick="deleteTask(${t.id})" class="text-slate-400 hover:text-rose-500 p-1"><i class="fa-solid fa-trash text-xs"></i></button>
+                    </div>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+ 
+        // --- TASK CARD GENERATOR FOR KANBAN ---
+        function createTaskCardHtml(t) {
+            const card = document.createElement('div');
+            card.className = `glass rounded-xl p-3.5 border-l-4 ${getPriorityBorderColor(t.priority)} shadow-sm hover:shadow-md transition space-y-2`;
+           
+            let subtasksHtml = '';
+            if (t.subtasks && t.subtasks.length > 0) {
+                subtasksHtml = `<div class="space-y-1 mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-800">`;
+                t.subtasks.forEach((sub, idx) => {
+                    subtasksHtml += `
+                        <label class="flex items-center space-x-2 text-[11px] text-slate-600 dark:text-slate-300 cursor-pointer">
+                            <input type="checkbox" ${sub.done ? 'checked' : ''} onchange="toggleSubtask(${t.id}, ${idx})" class="w-3.5 h-3.5 rounded text-sky-500">
+                            <span class="${sub.done ? 'line-through text-slate-400' : ''}">${escapeHtml(sub.text)}</span>
+                        </label>
+                    `;
+                });
+                subtasksHtml += `</div>`;
+            }
+ 
+            card.innerHTML = `
+                <div class="flex items-start justify-between">
+                    <h4 class="text-xs font-semibold ${t.status === 'completed' ? 'line-through text-slate-400' : ''}">${escapeHtml(t.title)}</h4>
+                    <div class="flex items-center space-x-1">
+                        <button onclick="openEditModal(${t.id})" class="text-slate-400 hover:text-sky-500 p-1"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        <button onclick="deleteTask(${t.id})" class="text-slate-400 hover:text-rose-500 p-1"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between text-[10px] text-slate-400">
+                    <span><i class="fa-solid fa-calendar mr-1"></i>${t.date ? formatDate(t.date) : 'Sem prazo'}</span>
+                    <span class="uppercase font-bold tracking-wider ${getPriorityTextClass(t.priority)}">${t.priority}</span>
+                </div>
+                ${subtasksHtml}
+                <div class="flex items-center justify-between pt-2">
+                    <select onchange="changeTaskStatus(${t.id}, this.value)" class="text-[10px] bg-slate-200/50 dark:bg-slate-800 rounded px-2 py-1 font-medium focus:outline-none">
+                        <option value="todo" ${t.status === 'todo' ? 'selected' : ''}>A Fazer</option>
+                        <option value="progress" ${t.status === 'progress' ? 'selected' : ''}>Em Progresso</option>
+                        <option value="completed" ${t.status === 'completed' ? 'selected' : ''}>Concluído</option>
+                    </select>
+                </div>
+            `;
+            return card;
+        }
+ 
+        // --- TASK ACTIONS & MODAL ---
+        function openTaskModal(defaultSection = 'estudo') {
+            document.getElementById('modal-title').innerText = 'Adicionar Nova Tarefa';
+            document.getElementById('task-edit-id').value = '';
+            document.getElementById('input-title').value = '';
+            document.getElementById('input-section').value = defaultSection;
+            document.getElementById('input-priority').value = 'media';
+            document.getElementById('input-status').value = 'todo';
+            document.getElementById('input-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('input-subtasks').value = '';
+            updateCategoryOptions();
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+ 
+        function openEditModal(id) {
+            const t = appData.tasks.find(x => x.id === id);
+            if (!t) return;
+            document.getElementById('modal-title').innerText = 'Editar Tarefa';
+            document.getElementById('task-edit-id').value = t.id;
+            document.getElementById('input-title').value = t.title;
+            document.getElementById('input-section').value = t.section;
+            updateCategoryOptions();
+            document.getElementById('input-category').value = t.category;
+            document.getElementById('input-priority').value = t.priority;
+            document.getElementById('input-status').value = t.status;
+            document.getElementById('input-date').value = t.date || '';
+            document.getElementById('input-subtasks').value = (t.subtasks || []).map(s => s.text).join('\n');
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+ 
+        function closeTaskModal() {
+            document.getElementById('task-modal').classList.add('hidden');
+        }
+ 
+        function updateCategoryOptions() {
+            const section = document.getElementById('input-section').value;
+            const catSelect = document.getElementById('input-category');
+            catSelect.innerHTML = '';
+ 
+            if (section === 'estudo') {
+                ['Matemática', 'Física', 'Programação', 'Idiomas', 'Leitura', 'Outros'].forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat;
+                    opt.innerText = cat;
+                    catSelect.appendChild(opt);
+                });
+            } else {
+                [
+                    {val: 'finance', label: 'Finanças / Contas'},
+                    {val: 'health', label: 'Saúde / Fitness'},
+                    {val: 'errands', label: 'Errandas / Compras'},
+                    {val: 'leisure', label: 'Lazer / Pessoal'}
+                ].forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.val;
+                    opt.innerText = c.label;
+                    catSelect.appendChild(opt);
+                });
+            }
+        }
+ 
+        function handleTaskSubmit(e) {
+            e.preventDefault();
+            const editId = document.getElementById('task-edit-id').value;
+            const title = document.getElementById('input-title').value;
+            const section = document.getElementById('input-section').value;
+            const category = document.getElementById('input-category').value;
+            const priority = document.getElementById('input-priority').value;
+            const status = document.getElementById('input-status').value;
+            const date = document.getElementById('input-date').value;
+            const subtasksRaw = document.getElementById('input-subtasks').value.trim();
+ 
+            let subtasks = [];
+            if (subtasksRaw) {
+                subtasks = subtasksRaw.split('\n').map(s => ({ text: s.trim(), done: false })).filter(s => s.text);
+            }
+ 
+            if (editId) {
+                const t = appData.tasks.find(x => x.id == editId);
+                if (t) {
+                    t.title = title;
+                    t.section = section;
+                    t.category = category;
+                    t.priority = priority;
+                    t.status = status;
+                    t.date = date;
+                    // preserve subtask done status if matching text
+                    t.subtasks = subtasks.map(sub => {
+                        const existing = (t.subtasks || []).find(old => old.text === sub.text);
+                        return existing ? existing : sub;
+                    });
+                }
+                showToast('Tarefa atualizada com sucesso!');
+            } else {
+                const newTask = {
+                    id: Date.now(),
+                    title,
+                    section,
+                    category,
+                    priority,
+                    status,
+                    date,
+                    subtasks,
+                    studyMinutes: 0
+                };
+                appData.tasks.push(newTask);
+                showToast('Tarefa criada com sucesso!');
+            }
+ 
+            closeTaskModal();
+            renderAll();
+        }
+ 
+        function deleteTask(id) {
+            appData.tasks = appData.tasks.filter(t => t.id !== id);
+            showToast('Tarefa excluída!', 'fa-solid fa-trash text-rose-400');
+            renderAll();
+        }
+ 
+        function toggleTaskStatus(id) {
+            const t = appData.tasks.find(x => x.id === id);
+            if (t) {
+                t.status = t.status === 'completed' ? 'todo' : 'completed';
+                renderAll();
+            }
+        }
+ 
+        function changeTaskStatus(id, newStatus) {
+            const t = appData.tasks.find(x => x.id === id);
+            if (t) {
+                t.status = newStatus;
+                renderAll();
+            }
+        }
+ 
+        function toggleSubtask(taskId, subIdx) {
+            const t = appData.tasks.find(x => x.id === taskId);
+            if (t && t.subtasks[subIdx]) {
+                t.subtasks[subIdx].done = !t.subtasks[subIdx].done;
+                renderAll();
+            }
+        }
+ 
+        // --- POMODORO TIMER FUNCTIONS ---
+        function startPomodoro() {
+            if (pomoRunning) return;
+            pomoRunning = true;
+            document.getElementById('pomodoro-status-text').innerText = 'Foco em andamento... Mantenha o ritmo!';
+           
+            pomoTimer = setInterval(() => {
+                if (pomoSeconds > 0) {
+                    pomoSeconds--;
+                    updatePomodoroDisplay();
+                } else {
+                    clearInterval(pomoTimer);
+                    pomoRunning = false;
+                    playAlarmSound();
+                    if (pomoMode === 'work') {
+                        appData.studyTimeTotal += 25;
+                        showToast('Ciclo Pomodoro concluído! +25 min de foco registrados.', 'fa-solid fa-fire text-amber-400');
+                        renderAll();
+                    } else {
+                        showToast('Pausa encerrada! Hora de voltar ao foco.');
+                    }
+                }
+            }, 1000);
+        }
+ 
+        function pausePomodoro() {
+            clearInterval(pomoTimer);
+            pomoRunning = false;
+            document.getElementById('pomodoro-status-text').innerText = 'Timer pausado.';
+        }
+ 
+        function resetPomodoro() {
+            clearInterval(pomoTimer);
+            pomoRunning = false;
+            if (pomoMode === 'work') pomoSeconds = 25 * 60;
+            else if (pomoMode === 'shortBreak') pomoSeconds = 5 * 60;
+            else if (pomoMode === 'longBreak') pomoSeconds = 15 * 60;
+            updatePomodoroDisplay();
+            document.getElementById('pomodoro-status-text').innerText = 'Pronto para iniciar.';
+        }
+ 
+        function setPomodoroMode(mode) {
+            clearInterval(pomoTimer);
+            pomoRunning = false;
+            pomoMode = mode;
+            if (mode === 'work') pomoSeconds = 25 * 60;
+            else if (mode === 'shortBreak') pomoSeconds = 5 * 60;
+            else if (mode === 'longBreak') pomoSeconds = 15 * 60;
+            updatePomodoroDisplay();
+        }
+ 
+        function updatePomodoroDisplay() {
+            const mins = Math.floor(pomoSeconds / 60);
+            const secs = pomoSeconds % 60;
+            document.getElementById('pomodoro-timer-display').innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+ 
+        function playAlarmSound() {
+            try {
+                // Tone.js synthetic beep chime
+                const synth = new Tone.Synth().toDestination();
+                synth.triggerAttackRelease("C5", "8n");
+                setTimeout(() => synth.triggerAttackRelease("G5", "4n"), 200);
+            } catch (e) {
+                console.log('Audio alert fallback');
+            }
+        }
+ 
+        // --- NOTES / SCRATCHPAD ---
+        function saveNotes() {
+            const text = document.getElementById('scratchpad-textarea').value;
+            appData.notes = text;
+            saveAppData();
+            showToast('Notas salvas com sucesso no navegador!');
+        }
+ 
+        // --- UTILS ---
+        function getCategoryName(cat) {
+            const map = {
+                finance: 'Finanças',
+                health: 'Saúde',
+                errands: 'Errandas',
+                leisure: 'Lazer'
+            };
+            return map[cat] || cat;
+        }
+ 
+        function getPriorityBorderColor(priority) {
+            if (priority === 'alta') return 'border-l-rose-500';
+            if (priority === 'media') return 'border-l-amber-500';
+            return 'border-l-sky-500';
+        }
+ 
+        function getPriorityTextClass(priority) {
+            if (priority === 'alta') return 'text-rose-500';
+            if (priority === 'media') return 'text-amber-500';
+            return 'text-sky-500';
+        }
+ 
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            return dateStr;
+        }
+ 
+        function escapeHtml(str) {
+            return str.replace(/[&<>'"]/g,
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+    </script>
+</body>
+</html>
+ 
